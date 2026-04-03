@@ -86,13 +86,15 @@
     }
     .cover-footer { flex-shrink: 0; }
     .hero-title-container {
-      margin-bottom: 10mm;
+      margin-bottom: 4mm;
       flex-shrink: 0;
     }
 
     .title-spacer {
-      flex: 1;
-      min-height: 10mm;
+      flex-grow: 0;
+      flex-shrink: 0;
+      height: auto;
+      margin-top: clamp(4mm, 0.8vw, 8mm);
     }
 
     .highlight-box {
