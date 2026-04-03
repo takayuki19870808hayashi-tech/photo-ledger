@@ -81,25 +81,29 @@
       flex: 1;
       display: flex;
       flex-direction: column;
-      justify-content: center;
+      justify-content: flex-start;
       min-height: 0;
-      padding-top: 8mm;
-      padding-bottom: 8mm;
+      padding-top: 6mm;
+      padding-bottom: 0;
     }
     .cover-footer { flex-shrink: 0; }
     .hero-title-container {
-      margin-bottom: 3mm;
+      margin-top: -2mm;
+      margin-bottom: 18mm;
       flex-shrink: 0;
     }
 
     .highlight-box {
       background-color: #f8fafc;
       border-left: 10px solid #001f3f;
-      padding: 14px 18px 12px;
+      padding: 10px 14px 8px;
       position: relative;
-      min-height: 42mm;
+      min-height: 32mm;
       display: flex;
       align-items: center;
+      
+      
+      margin-left: 0;
     }
 
     .cover-info-block {
@@ -116,8 +120,8 @@
     }
 
     .cover-title-text {
-      font-size: clamp(20px, 3vw, 42px);
-      line-height: 1.18;
+      font-size: clamp(18px, 2.2vw, 32px);
+      line-height: 1.2;
       font-weight: 900;
       color: #001f3f;
       width: 100%;
@@ -449,7 +453,15 @@
         break-after: page;
       }
     }
-  </style>
+  
+.cover-info-block > div {
+  margin-bottom: 6mm;
+}
+.cover-info-block > div:last-child {
+  margin-bottom: 0;
+}
+
+</style>
 </head>
 <body>
   <div id="root"></div>
@@ -808,7 +820,7 @@
 
                 <div className="hero-title-container">
                   <div className="highlight-box shadow-sm">
-                    <div className="absolute -top-4 left-10 bg-blue-900 text-white px-5 py-1 text-[9px] font-black tracking-[0.35em] uppercase shadow-sm">
+                    <div className="absolute -top-4 left-4 bg-blue-900 text-white px-5 py-1 text-[9px] font-black tracking-[0.35em] uppercase shadow-sm">
                       Project Name / 工事名称
                     </div>
                     <div className="cover-title-text">
@@ -817,20 +829,20 @@
                   </div>
                 </div>
 
-                <div className="cover-info-block max-w-lg mx-auto w-full space-y-4">
+                <div className="cover-info-block max-w-lg mx-auto w-full  mt-10">
                   {[
                     { label: "施工場所 / Site Location", key: "location", val: project.location },
                     { label: "工期 / Work Period", key: "period", val: project.period },
                     { label: "施工業者 / Contractor", key: "contractor", val: project.contractor },
                     { label: "担当者 / Representative", key: "representative", val: project.representative }
                   ].map((item) => (
-                    <div key={item.key} className="flex border-b border-zinc-100 pb-2 items-end">
+                    <div key={item.key} className="flex border-b border-zinc-100 pb-1 items-end">
                       <div className="flex items-center gap-4 w-52 shrink-0">
                         <label className="text-[9px] uppercase tracking-widest font-black text-zinc-400 leading-none">
                           {item.label}
                         </label>
                       </div>
-                      <div className="flex-1 text-[16px] font-bold text-[#001f3f] tracking-wide whitespace-pre-wrap break-words">
+                      <div className="flex-1 text-[15px] font-bold text-[#001f3f] tracking-wide whitespace-pre-wrap break-words">
                         {item.val}
                       </div>
                     </div>
@@ -962,7 +974,7 @@
                     </button>
                   </div>
 
-                  <div className="space-y-4">
+                  <div className="">
                     <div>
                       <label className="mobile-label">工事名称</label>
                       <textarea
