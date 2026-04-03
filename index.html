@@ -2,7 +2,687 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewp<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Construction Photo Record - Complete</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;900&family=Noto+Sans+JP:wght@300;400;700;900&display=swap');
+
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', 'Noto Sans JP', sans-serif;
+      background: #f1f5f9;
+      color: #0f172a;
+    }
+
+    body {
+      min-height: 100vh;
+    }
+
+    textarea,
+    input,
+    select {
+      border: none;
+      outline: none;
+      background: transparent;
+      width: 100%;
+      font: inherit;
+      color: inherit;
+    }
+
+    textarea {
+      resize: none;
+    }
+
+    .print-sheet {
+      width: 210mm;
+      height: 297mm;
+      background: #fff;
+      overflow: hidden;
+      page-break-after: always;
+      break-after: page;
+      position: relative;
+    }
+
+    .preview-sheet {
+      width: 100%;
+      height: 100%;
+      background: #fff;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .preview-frame {
+      width: min(100%, 1120px);
+      aspect-ratio: 210 / 297;
+      background: #fff;
+      border-radius: 2px;
+      overflow: hidden;
+      box-shadow: 0 8px 30px rgba(15, 23, 42, 0.12);
+      margin: 0 auto;
+      flex: 0 0 auto;
+    }
+
+    .preview-inner {
+      width: 100%;
+      height: 100%;
+    }
+
+    .title-display {
+      white-space: pre-wrap;
+      word-break: break-word;
+      letter-spacing: 0.08em;
+      line-height: 1.3;
+    }
+
+    @page {
+      size: A4 portrait;
+      margin: 0;
+    }
+
+    @media print {
+      html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #fff !important;
+      }
+
+      .screen-only {
+        display: none !important;
+      }
+
+      .print-only {
+        display: block !important;
+      }
+
+      .print-sheet {
+        width: 210mm !important;
+        height: 297mm !important;
+        margin: 0 !important;
+        overflow: hidden !important;
+        box-shadow: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useMemo, useState, useEffect, useRef } = React;
+
+    const STORAGE_KEY = "construction-photo-record-complete-v2";
+
+    const STATUS_TO_JP = {
+      "": "",
+      BEFORE: "着工前",
+      DURING: "施工中",
+      AFTER: "完了",
+    };
+
+    const JP_TO_STATUS = {
+      "": "",
+      "無記名": "",
+      "着工前": "BEFORE",
+      "着工前全景": "BEFORE",
+      "施工中": "DURING",
+      "完了": "AFTER",
+    };
+
+    const defaultProject = {
+      title: "",
+      location: "愛知県名古屋市",
+      period: "2026.04.01 - 2026.04.10",
+      contractor: "株式会社 林看板",
+      representative: "林 孝行",
+      serial: "ID: 2026-000",
+    };
+
+    function makeId(prefix = "id") {
+      return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
+    }
+
+    function createPhoto(index, type = "DURING") {
+      const presets = {
+        BEFORE: { status: "BEFORE", statusJp: "着工前", photoId: `ID: ${String(index).padStart(2, "0")}` },
+        DURING: { status: "DURING", statusJp: "施工中", photoId: `ID: ${String(index).padStart(2, "0")}` },
+        AFTER: { status: "AFTER", statusJp: "完了", photoId: `ID: ${String(index).padStart(2, "0")}` },
+      };
+
+      return {
+        id: makeId("photo"),
+        src: null,
+        caption: "",
+        ...presets[type],
+      };
+    }
+
+    function createPage() {
+      return {
+        id: makeId("page"),
+        photos: [
+          { ...createPhoto(1, "BEFORE"), statusJp: "着工前全景", caption: "現場の現状確認。" },
+          createPhoto(2, "DURING"),
+          createPhoto(3, "DURING"),
+          createPhoto(4, "AFTER"),
+        ],
+      };
+    }
+
+    function getInitialData() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+          return { project: defaultProject, pages: [createPage()] };
+        }
+        const parsed = JSON.parse(raw);
+        return {
+          project: parsed.project || defaultProject,
+          pages: parsed.pages && parsed.pages.length ? parsed.pages : [createPage()],
+        };
+      } catch {
+        return { project: defaultProject, pages: [createPage()] };
+      }
+    }
+
+    function Icon({ name, size = 16, className = "" }) {
+      useEffect(() => {
+        if (window.lucide) window.lucide.createIcons();
+      }, [name]);
+      return <i data-lucide={name} style={{ width: size, height: size }} className={className}></i>;
+    }
+
+    function Field({ label, value, onChange, multiline = false, rows = 4 }) {
+      return (
+        <div className="grid grid-cols-[160px_1fr] items-start gap-4 border-b border-slate-200 pb-2">
+          <label className="text-[11px] font-bold tracking-[0.16em] text-slate-500 uppercase pt-2">{label}</label>
+          {multiline ? (
+            <textarea
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              rows={rows}
+              className="px-0 text-[15px] font-semibold leading-6"
+            />
+          ) : (
+            <input
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              className="px-0 h-9 text-[15px] font-semibold"
+            />
+          )}
+        </div>
+      );
+    }
+
+    function CoverSheet({ project, preview = false }) {
+      return (
+        <div
+          className={`${preview ? "preview-sheet" : "print-sheet"} text-slate-900 flex flex-col`}
+          style={{ padding: "15mm 16mm 14mm 16mm" }}
+        >
+          <div className="flex items-start justify-between shrink-0">
+            <div className="border border-slate-100 bg-slate-50 px-4 py-2 text-[9px] font-black tracking-[0.35em] uppercase text-slate-400 italic">
+              Confidential / 機密
+            </div>
+            <div className="pr-4 border-r-[6px] border-[#001f3f] text-right">
+              <div className="text-[8px] font-black tracking-[0.3em] text-slate-300 uppercase mb-1">Document ID</div>
+              <div className="text-[12px] font-black text-[#001f3f]">{project.serial}</div>
+            </div>
+          </div>
+
+          <div className="flex-1 min-h-0 flex flex-col" style={{ paddingTop: "26mm" }}>
+            <div className="text-center shrink-0" style={{ marginBottom: "22mm" }}>
+              <div className="text-[13px] font-black text-slate-300 uppercase tracking-[0.9em] pl-[0.9em] leading-none">
+                CONSTRUCTION PHOTO RECORD
+              </div>
+              <div className="h-px w-52 bg-slate-100 mx-auto mt-6" />
+            </div>
+
+            <div className="relative border-l-[10px] border-[#001f3f] bg-slate-50 px-7 pt-6 pb-5 shrink-0 shadow-sm">
+              <div className="absolute -top-4 left-8 bg-[#001f3f] px-4 py-1 text-[9px] font-black uppercase tracking-[0.28em] text-white">
+                Project Name / 工事名称
+              </div>
+              <div className="text-[34px] font-black tracking-tight text-[#001f3f] min-h-[96px] title-display">
+                {project.title || "案件名を入力"}
+              </div>
+            </div>
+
+            <div className="max-w-[600px] mx-auto w-full space-y-6 shrink-0" style={{ marginTop: "24mm" }}>
+              <div className="grid grid-cols-[190px_1fr] items-end gap-4 border-b border-slate-100 pb-3">
+                <div className="text-[10px] uppercase tracking-[0.18em] font-black text-slate-400">施工場所 / Site Location</div>
+                <div className="text-[16px] font-bold text-[#001f3f] whitespace-pre-wrap">{project.location}</div>
+              </div>
+              <div className="grid grid-cols-[190px_1fr] items-end gap-4 border-b border-slate-100 pb-3">
+                <div className="text-[10px] uppercase tracking-[0.18em] font-black text-slate-400">工期 / Work Period</div>
+                <div className="text-[16px] font-bold text-[#001f3f] whitespace-pre-wrap">{project.period}</div>
+              </div>
+              <div className="grid grid-cols-[190px_1fr] items-end gap-4 border-b border-slate-100 pb-3">
+                <div className="text-[10px] uppercase tracking-[0.18em] font-black text-slate-400">施工業者 / Contractor</div>
+                <div className="text-[16px] font-bold text-[#001f3f] whitespace-pre-wrap">{project.contractor}</div>
+              </div>
+              <div className="grid grid-cols-[190px_1fr] items-end gap-4 border-b border-slate-100 pb-3">
+                <div className="text-[10px] uppercase tracking-[0.18em] font-black text-slate-400">担当者 / Representative</div>
+                <div className="text-[16px] font-bold text-[#001f3f] whitespace-pre-wrap">{project.representative}</div>
+              </div>
+            </div>
+
+            <div className="flex-1" />
+          </div>
+
+          <div className="h-[24mm] flex flex-col items-center justify-end shrink-0">
+            <div className="h-10 w-px bg-[#001f3f] opacity-10 mb-4" />
+            <div className="text-[10px] text-slate-200 tracking-[0.9em] pl-[0.9em] font-black uppercase italic">Official Record</div>
+          </div>
+        </div>
+      );
+    }
+
+    function PhotoCell({ photo, editable, onUpload, onChange, onRemovePhoto }) {
+      const showDivider = Boolean((photo.status || "").trim() && (photo.statusJp || "").trim());
+
+      return (
+        <div className="min-h-0 flex flex-col overflow-hidden">
+          <div className="relative flex-1 min-h-0 rounded-sm border border-slate-200 bg-slate-50 overflow-hidden">
+            {photo.src ? (
+              <img src={photo.src} alt="施工写真" className="w-full h-full object-cover block" />
+            ) : (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-slate-300">
+                <Icon name="image" size={48} />
+                <span className="text-[11px] font-bold tracking-[0.35em] uppercase">No Image</span>
+              </div>
+            )}
+
+            {editable && (
+              <>
+                <label className="absolute inset-0 opacity-0 hover:opacity-100 transition bg-slate-950/70 text-white flex items-center justify-center cursor-pointer">
+                  <input type="file" accept="image/*" className="hidden" onChange={onUpload} />
+                  <span className="inline-flex items-center gap-2 px-5 py-2 border border-white/30 rounded-md text-[11px] font-bold tracking-[0.18em] uppercase">
+                    <Icon name="upload" size={16} />
+                    画像を選択
+                  </span>
+                </label>
+
+                {photo.src && (
+                  <button
+                    type="button"
+                    onClick={onRemovePhoto}
+                    className="absolute top-2 right-2 z-10 inline-flex items-center gap-1 rounded-md bg-white/90 px-3 py-1.5 text-[11px] font-bold text-rose-600 shadow-sm border border-rose-100"
+                  >
+                    <Icon name="trash-2" size={14} />
+                    削除
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+
+          <div className="mt-2 grid grid-cols-[92px_12px_1fr_80px] items-center gap-2 border-b border-slate-100 pb-2 text-[10px] font-bold tracking-[0.1em]">
+            <select
+              value={photo.status || ""}
+              onChange={(e) => onChange("status", e.target.value)}
+              className="h-7 text-[10px] font-black text-sky-800 uppercase bg-transparent"
+            >
+              <option value=""></option>
+              <option value="BEFORE">BEFORE</option>
+              <option value="DURING">DURING</option>
+              <option value="AFTER">AFTER</option>
+            </select>
+
+            <span className={`text-slate-300 text-center ${showDivider ? "" : "invisible"}`}>/</span>
+
+            <select
+              value={photo.statusJp || ""}
+              onChange={(e) => onChange("statusJp", e.target.value)}
+              className="h-7 text-[11px] font-bold bg-transparent"
+            >
+              <option value=""></option>
+              <option value="着工前">着工前</option>
+              <option value="施工中">施工中</option>
+              <option value="完了">完了</option>
+              <option value="無記名">無記名</option>
+            </select>
+
+            <input value={photo.photoId} onChange={(e) => onChange("photoId", e.target.value)} className="h-7 text-[10px] italic text-right text-slate-400" />
+          </div>
+
+          <textarea
+            value={photo.caption}
+            onChange={(e) => onChange("caption", e.target.value)}
+            placeholder="詳細説明を記入してください"
+            className="mt-2 min-h-[104px] max-h-[104px] px-0 py-0 text-[12px] leading-5 font-medium text-slate-600"
+          />
+        </div>
+      );
+    }
+
+    function RecordSheet({ project, page, pageNumber, editable, updatePhoto, uploadPhoto, preview = false }) {
+      return (
+        <div
+          className={`${preview ? "preview-sheet" : "print-sheet"} text-slate-900 flex flex-col`}
+          style={{ padding: "9mm 11mm 7mm 11mm" }}
+        >
+          <div className="flex items-end justify-between border-b-[3px] border-[#001f3f] pb-2 mb-2 shrink-0" style={{ minHeight: "15mm" }}>
+            <div className="min-w-0 flex items-center gap-4">
+              <h3 className="text-[27px] leading-none font-black italic tracking-tight text-[#001f3f] uppercase shrink-0">Photo Log</h3>
+              <div className="w-px h-6 bg-slate-200 shrink-0" />
+              <div className="min-w-0 truncate text-[10px] font-black uppercase tracking-[0.22em] text-sky-900">
+                {project.title || "Archive Record"}
+              </div>
+            </div>
+            <div className="bg-[#001f3f] text-white px-5 py-2 text-[11px] font-black uppercase tracking-[0.32em] shrink-0">Page {pageNumber}</div>
+          </div>
+
+          <div className="flex-1 min-h-0 flex flex-col">
+            <div
+              className="grid flex-1 min-h-0"
+              style={{
+                gridTemplateColumns: "1fr 1fr",
+                gridTemplateRows: "repeat(2, minmax(0, 1fr))",
+                gap: "9mm 6mm",
+              }}
+            >
+              {page.photos.map((photo) => (
+                <PhotoCell
+                  key={photo.id}
+                  photo={photo}
+                  editable={editable}
+                  onUpload={(e) => uploadPhoto(page.id, photo.id, e)}
+                  onRemovePhoto={() => updatePhoto(page.id, photo.id, "src", null)}
+                  onChange={(field, value) => updatePhoto(page.id, photo.id, field, value)}
+                />
+              ))}
+            </div>
+
+            <div className="mt-1 pt-2 border-t border-slate-100 shrink-0 flex items-center justify-between text-[9px] font-black uppercase tracking-[0.2em] text-slate-400" style={{ minHeight: "9mm" }}>
+              <div className="min-w-0 flex items-center gap-4 italic">
+                <span className="text-[#001f3f] tracking-[0.08em]">Authorized Official</span>
+                <div className="w-px h-3 bg-slate-200" />
+                <span className="truncate">{project.contractor}</span>
+              </div>
+              <div className="shrink-0 flex items-center gap-4 italic">
+                <span>{project.serial}</span>
+                <div className="w-1.5 h-1.5 rounded-full bg-slate-200" />
+                <span className="text-[#001f3f]">Elite Archive</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function PreviewFrame({ children }) {
+      return (
+        <div className="preview-frame mx-auto">
+          <div className="preview-inner">{children}</div>
+        </div>
+      );
+    }
+
+    function App() {
+      const initial = getInitialData();
+      const [project, setProject] = useState(initial.project);
+      const [pages, setPages] = useState(initial.pages);
+      const fileInputRef = useRef(null);
+
+      const totalPhotos = useMemo(() => pages.reduce((sum, p) => sum + p.photos.length, 0), [pages]);
+
+      useEffect(() => {
+        const payload = JSON.stringify({ project, pages });
+        localStorage.setItem(STORAGE_KEY, payload);
+      }, [project, pages]);
+
+      const updatePhoto = (pageId, photoId, field, value) => {
+        setPages((prev) =>
+          prev.map((page) =>
+            page.id !== pageId
+              ? page
+              : {
+                  ...page,
+                  photos: page.photos.map((photo) => {
+                    if (photo.id !== photoId) return photo;
+
+                    if (field === "status") {
+                      const nextStatus = value || "";
+                      return {
+                        ...photo,
+                        status: nextStatus,
+                        statusJp: STATUS_TO_JP[nextStatus] || "",
+                      };
+                    }
+
+                    if (field === "statusJp") {
+                      const nextStatusJp = value || "";
+                      const mappedStatus = JP_TO_STATUS[nextStatusJp] || "";
+                      return {
+                        ...photo,
+                        statusJp: mappedStatus ? nextStatusJp : "",
+                        status: mappedStatus,
+                      };
+                    }
+
+                    return { ...photo, [field]: value };
+                  }),
+                }
+          )
+        );
+      };
+
+      const uploadPhoto = (pageId, photoId, e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          updatePhoto(pageId, photoId, "src", String((event.target && event.target.result) || ""));
+        };
+        reader.readAsDataURL(file);
+      };
+
+      const addPage = () => setPages((prev) => [...prev, createPage()]);
+
+      const removePage = (pageId) =>
+        setPages((prev) => (prev.length > 1 ? prev.filter((p) => p.id !== pageId) : prev));
+
+      const resetAll = () => {
+        if (!confirm("現在の入力内容を初期化します。よろしいですか？")) return;
+        const fresh = { project: defaultProject, pages: [createPage()] };
+        setProject(fresh.project);
+        setPages(fresh.pages);
+        localStorage.removeItem(STORAGE_KEY);
+      };
+
+      const handleExport = () => {
+        const payload = { project, pages };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        const safeTitle = (project.title || "construction-photo-record").replace(/[\\\/:*?"<>|]/g, "_");
+        a.href = url;
+        a.download = `${safeTitle || "construction-photo-record"}_${project.serial || "record"}.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      };
+
+      const handleImportClick = () => {
+        if (fileInputRef.current) fileInputRef.current.click();
+      };
+
+      const handleImportFile = (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const parsed = JSON.parse(String((event.target && event.target.result) || "{}"));
+            if (!parsed.project || !parsed.pages) throw new Error("invalid");
+            setProject(parsed.project);
+            setPages(parsed.pages.length ? parsed.pages : [createPage()]);
+          } catch {
+            alert("JSONの読み込みに失敗しました。");
+          }
+        };
+        reader.readAsText(file, "utf-8");
+        e.target.value = "";
+      };
+
+      const handlePrint = () => {
+        window.print();
+      };
+
+      return (
+        <div className="min-h-screen bg-slate-100 text-slate-900">
+          <div className="screen-only sticky top-0 z-50 border-b bg-slate-950 text-white">
+            <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-sky-600 grid place-items-center shadow-lg">
+                  <Icon name="file-text" size={20} />
+                </div>
+                <div>
+                  <div className="text-sm font-black uppercase tracking-[0.2em]">Construction Photo Record</div>
+                  <div className="text-[11px] text-sky-300 font-semibold tracking-[0.18em] uppercase">browser complete edition</div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <div className="bg-white/10 text-white rounded-full px-3 py-1 text-sm">{pages.length} ページ</div>
+                <div className="bg-white/10 text-white rounded-full px-3 py-1 text-sm">{totalPhotos} 写真枠</div>
+                <button onClick={handleExport} className="rounded-2xl bg-white/10 hover:bg-white/20 text-white px-4 py-2 font-semibold inline-flex items-center gap-2">
+                  <Icon name="download" size={16} />
+                  保存
+                </button>
+                <button onClick={handleImportClick} className="rounded-2xl bg-white/10 hover:bg-white/20 text-white px-4 py-2 font-semibold inline-flex items-center gap-2">
+                  <Icon name="upload" size={16} />
+                  読込
+                </button>
+                <button onClick={handlePrint} className="rounded-2xl bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 font-semibold inline-flex items-center gap-2">
+                  <Icon name="printer" size={16} />
+                  印刷 / PDF保存
+                </button>
+                <input ref={fileInputRef} type="file" accept=".json,application/json" className="hidden" onChange={handleImportFile} />
+              </div>
+            </div>
+          </div>
+
+          <div className="screen-only max-w-7xl mx-auto px-6 py-6 grid lg:grid-cols-[300px_minmax(0,1fr)] gap-4">
+            <div className="rounded-3xl shadow-sm border-0 bg-white">
+              <div className="p-6 space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-black tracking-tight">案件情報</h2>
+                    <p className="text-sm text-slate-500">自動保存されます。タイトルは改行可能です。</p>
+                  </div>
+                  <Icon name="settings-2" size={20} className="text-slate-400" />
+                </div>
+
+                <div className="space-y-4">
+                  <Field label="工事名称" value={project.title} onChange={(v) => setProject({ ...project, title: v })} multiline rows={5} />
+                  <Field label="施工場所" value={project.location} onChange={(v) => setProject({ ...project, location: v })} />
+                  <Field label="工期" value={project.period} onChange={(v) => setProject({ ...project, period: v })} />
+                  <Field label="施工業者" value={project.contractor} onChange={(v) => setProject({ ...project, contractor: v })} />
+                  <Field label="担当者" value={project.representative} onChange={(v) => setProject({ ...project, representative: v })} />
+                  <Field label="文書ID" value={project.serial} onChange={(v) => setProject({ ...project, serial: v })} />
+                </div>
+
+                <div className="pt-2 grid grid-cols-2 gap-2">
+                  <button onClick={addPage} className="rounded-2xl bg-slate-900 text-white px-4 py-2 font-semibold inline-flex items-center justify-center gap-2">
+                    <Icon name="plus" size={16} />
+                    ページ追加
+                  </button>
+                  <button onClick={resetAll} className="rounded-2xl bg-slate-100 text-slate-700 px-4 py-2 font-semibold inline-flex items-center justify-center gap-2">
+                    <Icon name="rotate-ccw" size={16} />
+                    初期化
+                  </button>
+                </div>
+
+                <div className="text-xs leading-5 text-slate-500 border-t pt-4">
+                  <div>・iPhoneでもSafariで開けば使えます。</div>
+                  <div>・印刷時はA4、余白なし、ヘッダーとフッターOFFで出力してください。</div>
+                  <div>・保存はJSONで書き出し、読込で復元できます。</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="rounded-[28px] bg-slate-200 px-2 py-3 lg:px-3">
+                <div className="mb-4">
+                  <h2 className="text-lg font-black tracking-tight">プレビュー</h2>
+                  <p className="text-sm text-slate-500">画面に合わせて拡大し、余白感を抑えています。</p>
+                </div>
+
+                <div className="w-full overflow-x-auto lg:overflow-visible flex justify-center pb-1">
+                  <div className="w-full flex flex-col items-center gap-4 mx-auto">
+                    <PreviewFrame>
+                      <CoverSheet project={project} preview={true} />
+                    </PreviewFrame>
+
+                    {pages.map((page, index) => (
+                      <div key={page.id} className="relative">
+                        <PreviewFrame>
+                          <RecordSheet
+                            project={project}
+                            page={page}
+                            pageNumber={index + 1}
+                            editable={true}
+                            updatePhoto={updatePhoto}
+                            uploadPhoto={uploadPhoto}
+                            preview={true}
+                          />
+                        </PreviewFrame>
+
+                        <button
+                          className="absolute -right-16 top-2 rounded-2xl bg-white border border-slate-200 p-3"
+                          onClick={() => removePage(page.id)}
+                        >
+                          <Icon name="trash-2" size={16} className="text-rose-500" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="print-only hidden">
+            <CoverSheet project={project} />
+            {pages.map((page, index) => (
+              <RecordSheet
+                key={page.id}
+                project={project}
+                page={page}
+                pageNumber={index + 1}
+                editable={false}
+                updatePhoto={updatePhoto}
+                uploadPhoto={uploadPhoto}
+              />
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
+ort" content="width=device-width, initial-scale=1.0" />
   <title>CONSTRUCTION PHOTO RECORD</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
